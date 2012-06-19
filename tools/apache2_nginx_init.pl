@@ -14,14 +14,15 @@ use File::Basename qw(basename);
 use Smart::Comments;
 
 Readonly my $NGINX_BIN      => '/usr/sbin/nginx';
+Readonly my $APACHE2_BIN    => '/usr/sbin/apache2';
 Readonly my $APACHE2CTL_BIN => '/usr/sbin/apache2ctl';
 
 Readonly my $BASENAME => basename($0);
 Readonly my $USAGE => <<END_OF_USAGE;
 Apache2 & Nginx init script
 \033[1mUsage:\033[0m 
-	apache2 start|stop|restart
-	nginx   start|stop|restart
+	apache2 start, stop, restart, status, test
+	nginx   start, stop, restart, status, test
 
 END_OF_USAGE
 
@@ -64,7 +65,10 @@ sub test_config {
 sub check_procs {
 	# Get number of running processes with pgrep command
 	my ($server_type) = @_;
-	my $number_of_procs = `pgrep -c ^$server_type\$`;
+	my $server_command;
+	   $server_command = $APACHE2_BIN if $server_type eq 'apache2';
+	   $server_command = $NGINX_BIN   if $server_type eq 'nginx';
+	my $number_of_procs = `pgrep -c -f $server_command`;
 	chomp $number_of_procs;
 	return $number_of_procs;
 }
@@ -147,9 +151,8 @@ sub start {
 	print "Starting $server_type...";
 
 	# Check web server process
-	my $number_of_procs = `pgrep -c ^$server_type\$`;
-	chomp $number_of_procs;
-	if ($number_of_procs) {
+	my $server_is_running = check_procs($server_type);
+	if ($server_is_running) {
 		print " already running\n";
 		exit;
 	}
