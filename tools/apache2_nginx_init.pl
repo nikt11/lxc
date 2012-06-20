@@ -47,114 +47,18 @@ if (not defined $main::{$command_name}) {
 # Run subroutine
 eval "$command_name(\$server_type)";
 die $@ if $@;
-
-sub test_config {
-	my ($server_type) = @_;
-
-	# Test configuration
-	my $test_result;
-	$test_result = `$APACHE2CTL_BIN -t 2>&1` if $server_type eq 'apache2';
-	$test_result = `$NGINX_BIN -t 2>&1`      if $server_type eq 'nginx';
-	chomp $test_result;
-	
-	# Return results if test failed
-	return $test_result if $?;
-	return;
-}
-
-sub check_procs {
-	# Get number of running processes with pgrep command
-	my ($server_type) = @_;
-	my $server_command;
-	   $server_command = $APACHE2_BIN if $server_type eq 'apache2';
-	   $server_command = $NGINX_BIN   if $server_type eq 'nginx';
-	my $number_of_procs = `pgrep -c -f $server_command`;
-	chomp $number_of_procs;
-	return $number_of_procs;
-}
-
-sub restart {
-	# Run stop and start
-	my ($server_type) = @_;
-	stop($server_type);
-	start($server_type);
-	exit;
-}
-
-sub status {
-	# Show server status
-	my ($server_type) = @_;
-	my $server_is_running = check_procs($server_type);
-	if ($server_is_running) {
-		print "$server_type is running.\n";
-		exit;
-	} 
-	die "$server_type is NOT running.\n";
-}
-
-sub test {
-	# Test server configuration
-	my ($server_type) = @_;
-	my $test_result = test_config($server_type);
-	
-	# Test failed
-	if (defined $test_result) {
-		die "$test_result\n";
-		
-	}
-
-	# Test OK
-	print "OK\n";
-	exit;
-}
-
-sub stop {
-	my ($server_type) = @_;
-	
-	# Print information
-	print "Stopping $server_type...";
-
-	# Check web server process
-	my $server_is_running = check_procs($server_type);
-	if (! $server_is_running) {
-		print " not running\n";
-		exit;
-	}
-
-	# Stop web server
-	my $stop_command;
-	   $stop_command = "$APACHE2CTL_BIN stop" if $server_type eq 'apache2';
-	   $stop_command = "pkill ^nginx\$"       if $server_type eq 'nginx';
-	
-	system($stop_command);
-	if ($?) {
-		print "failed!\n";
-		die "Reason: $!\n";
-	}
-
-	sleep 2;
-	my $server_still_running = check_procs($server_type);
-	if ($server_still_running) {
-		system("pkill -9 ^$server_type\$");
-		print "cannot stop, server killed with kill -9\n";
-		exit;
-	}
-	
-	print "done\n";
-	exit;
-}
+exit;
 
 sub start {
 	my ($server_type) = @_;
 		
 	# Print information
-	print "Starting $server_type...";
+	print "Starting $server_type... ";
 
 	# Check web server process
 	my $server_is_running = check_procs($server_type);
 	if ($server_is_running) {
-		print " already running\n";
-		exit;
+		die "already running\n";
 	}
 
 	# Check configuration
@@ -172,14 +76,116 @@ sub start {
 	system($start_command);
 	if ($?) {
 		print "failed!\n";
-		die "Reason: $!\n";
+		die "$!\n";
 	}
 
 	print "done\n";
-	exit;
+	return;
+}
+
+sub stop {
+	my ($server_type) = @_;
+	
+	# Print information
+	print "Stopping $server_type... ";
+
+	# Check web server process
+	my $server_is_running = check_procs($server_type);
+	if (! $server_is_running) {
+		die "not running\n";
+	}
+
+	# Stop web server
+	my $stop_command;
+	   $stop_command = "$APACHE2CTL_BIN stop" if $server_type eq 'apache2';
+	   $stop_command = "pkill -f $NGINX_BIN"  if $server_type eq 'nginx';
+	
+	system($stop_command);
+	if ($?) {
+		
+		print "failed!\n";
+		die "$!\n";
+	}
+	sleep 2;
+
+	# Check if server stopped
+	my $server_still_running = check_procs($server_type);
+	if ($server_still_running) {
+		system("pkill -9 ^$server_type\$");
+		die "cannot stop, server killed with kill -9\n";
+	}
+	
+	print "done\n";
+	return;
+}
+
+sub restart {
+	# Run stop and start
+	my ($server_type) = @_;
+
+	# Stop server
+	eval { stop($server_type) };
+	print $@ if $@;
+
+	# Start server
+	eval { start($server_type) }; 
+	print $@ if $@;
+
+	return;
+}
+
+sub status {
+	# Show server status
+	my ($server_type) = @_;
+	my $server_is_running = check_procs($server_type);
+	if ($server_is_running) {
+		print "$server_type is running.\n";
+	}
+	else { 
+		die "$server_type is NOT running.\n";
+	}
+	
+	return;
+}
+
+sub test {
+	# Test server configuration
+	my ($server_type) = @_;
+	my $test_result = test_config($server_type);
+	
+	# Test failed
+	die "$test_result\n" if defined $test_result;
+
+	# Test OK
+	print "OK\n";
+	return;
+}
+
+sub check_procs {
+	# Get number of running processes with pgrep command
+	my ($server_type) = @_;
+	my $server_command;
+	   $server_command = $APACHE2_BIN if $server_type eq 'apache2';
+	   $server_command = $NGINX_BIN   if $server_type eq 'nginx';
+	my $number_of_procs = `pgrep -c -f $server_command`;
+	chomp $number_of_procs;
+	return $number_of_procs;
+}
+
+sub test_config {
+	my ($server_type) = @_;
+
+	# Test configuration
+	my $test_result;
+	$test_result = `$APACHE2CTL_BIN -t 2>&1` if $server_type eq 'apache2';
+	$test_result = `$NGINX_BIN -t 2>&1`      if $server_type eq 'nginx';
+	chomp $test_result;
+	
+	# Return results if test failed
+	return $test_result if $?;
+	return;
 }
 
 sub usage {
 	print $USAGE;
-	exit;
 }
