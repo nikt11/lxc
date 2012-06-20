@@ -111,7 +111,10 @@ sub stop {
 	# Check if server stopped
 	my $server_still_running = check_procs($server_type);
 	if ($server_still_running) {
-		system("pkill -9 ^$server_type\$");
+		my $kill_command;
+		   $kill_command = "pkill -9 -f $APACHE2_BIN" if $server_type eq 'apache2';
+		   $kill_command = "pkill -9 -f $NGINX_BIN"   if $server_type eq 'nginx';
+		system($kill_command);
 		die "cannot stop, server killed with kill -9\n";
 	}
 	
