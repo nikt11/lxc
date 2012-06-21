@@ -16,7 +16,35 @@ use Smart::Comments;
 Readonly my $NGINX_BIN      => '/usr/sbin/nginx';
 Readonly my $APACHE2_BIN    => '/usr/sbin/apache2';
 Readonly my $APACHE2CTL_BIN => '/usr/sbin/apache2ctl';
-
+Readonly my $PKILL_BIN      => '/usr/bin/pkill';
+Readonly my $PGREP_BIN      => '/usr/bin/pgrep';
+Readonly my %COMMAND => {
+	# Start web server
+	start => {
+		apache2 => "$APACHE2CTL_BIN start",
+		nginx   => "$NGINX_BIN",
+	},
+	# Stop web server
+	stop => {
+		apache2 => "$APACHE2CTL_BIN stop",
+		nginx   => "$PKILL_BIN -f $NGINX_BIN",
+	},
+	# Kill web server processes
+	kill => {
+		apache2 => "$PKILL_BIN -9 -f $APACHE2_BIN",
+		nginx   => "$PKILL_BIN -9 -f $NGINX_BIN",
+	},
+	# Test configuration
+	test => {
+	        apache2 => "$APACHE2CTL_BIN -t 2>&1",
+		nginx   => "$NGINX_BIN -t 2>&1",
+	},
+	# Check server processes
+	check => {
+		apache2 => "$PGREP_BIN -c -f $APACHE2_BIN",
+		nginx   => "$PGREP_BIN -c -f $NGINX_BIN",
+	},
+};
 Readonly my $BASENAME => basename($0);
 Readonly my $USAGE => <<END_OF_USAGE;
 Apache2 & Nginx init script
@@ -26,9 +54,12 @@ Apache2 & Nginx init script
 
 END_OF_USAGE
 
-# Check files
+# Check system binaries
 -f $NGINX_BIN      or die "\$NGINX_BIN ($NGINX_BIN) not found. Cannot proceed.\n";
+-f $APACHE2_BIN    or die "\$APACHE2_BIN ($APACHE2_BIN) not found. Cannot proceed.\n";
 -f $APACHE2CTL_BIN or die "\$APACHE2CTL_BIN ($APACHE2CTL_BIN) not found. Cannot proceed.\n";
+-f $PKILL_BIN      or die "\$PKILL_BIN ($PKILL_BIN) not found. Cannot proceed.\n";
+-f $PGREP_BIN      or die "\$PGREP_BIN ($PGREP_BIN) not found. Cannot proceed.\n";
 
 # Get service name (apache2 or nginx)
 my $server_type = $BASENAME;
@@ -69,10 +100,7 @@ sub start {
 	}
 
 	# Start web server
-	my $start_command;
-	   $start_command = "$APACHE2CTL_BIN start" if $server_type eq 'apache2';
-	   $start_command = "$NGINX_BIN"            if $server_type eq 'nginx';
-	
+	my $start_command = $COMMAND{start}->{$server_type};
 	system($start_command);
 	if ($?) {
 		print "failed!\n";
@@ -96,24 +124,19 @@ sub stop {
 	}
 
 	# Stop web server
-	my $stop_command;
-	   $stop_command = "$APACHE2CTL_BIN stop" if $server_type eq 'apache2';
-	   $stop_command = "pkill -f $NGINX_BIN"  if $server_type eq 'nginx';
-	
+	my $stop_command = $COMMAND{stop}->{$server_type};
 	system($stop_command);
 	if ($?) {
 		
 		print "failed!\n";
 		die "$!\n";
 	}
-	sleep 2;
+	sleep 5;
 
 	# Check if server stopped
 	my $server_still_running = check_procs($server_type);
 	if ($server_still_running) {
-		my $kill_command;
-		   $kill_command = "pkill -9 -f $APACHE2_BIN" if $server_type eq 'apache2';
-		   $kill_command = "pkill -9 -f $NGINX_BIN"   if $server_type eq 'nginx';
+		my $kill_command = $COMMAND{kill}->{$server_type};
 		system($kill_command);
 		die "cannot stop, server killed with kill -9\n";
 	}
@@ -165,13 +188,12 @@ sub test {
 }
 
 sub check_procs {
-	# Get number of running processes with pgrep command
 	my ($server_type) = @_;
-	my $server_command;
-	   $server_command = $APACHE2_BIN if $server_type eq 'apache2';
-	   $server_command = $NGINX_BIN   if $server_type eq 'nginx';
-	my $number_of_procs = `pgrep -c -f $server_command`;
+
+	# Get number of running processes
+	my $number_of_procs = `$COMMAND{check}->{$server_type}`;
 	chomp $number_of_procs;
+
 	return $number_of_procs;
 }
 
@@ -179,9 +201,7 @@ sub test_config {
 	my ($server_type) = @_;
 
 	# Test configuration
-	my $test_result;
-	$test_result = `$APACHE2CTL_BIN -t 2>&1` if $server_type eq 'apache2';
-	$test_result = `$NGINX_BIN -t 2>&1`      if $server_type eq 'nginx';
+	my $test_result = `$COMMAND{test}->{$server_type}`;
 	chomp $test_result;
 	
 	# Return results if test failed
@@ -191,4 +211,5 @@ sub test_config {
 
 sub usage {
 	print $USAGE;
+	exit;
 }
