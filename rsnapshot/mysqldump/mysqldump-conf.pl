@@ -31,7 +31,7 @@ Readonly my $MYSQLDUMP_SCRIPT => "$RSNAPSHOT_CONF_DIR/mysqldump/mysqldump-script
 Readonly my $RSNAPSHOT_SCRIPT => "$DB_DUMP_DIR/mysqldump-script.pl";        # symlink to mysqldump script in dump directory
 
 Readonly my $DEFAULT_CONTAINER_TYPE => 'other';
-Readonly my $DEFAULT_RETAIN_HOURLY  => 6;
+Readonly my $DEFAULT_RETAIN_HOURLY  => 4;
 Readonly my $DEFAULT_RETAIN_DAILY   => 7;
 Readonly my $DEFAULT_RETAIN_WEEKLY  => 4;
 Readonly my $DEFAULT_RETAIN_MONTHLY => 3;
