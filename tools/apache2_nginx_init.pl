@@ -13,7 +13,7 @@ use Readonly;
 use File::Basename qw(basename);
 use Smart::Comments;
 
-Readonly my $NGINX_BIN      => '/usr/sbin/nginx';
+Readonly my $NGINX_BIN      => '/usr/local/nginx/sbin/nginx';
 Readonly my $APACHE2_BIN    => '/usr/sbin/apache2';
 Readonly my $APACHE2CTL_BIN => '/usr/sbin/apache2ctl';
 Readonly my $PKILL_BIN      => '/usr/bin/pkill';
