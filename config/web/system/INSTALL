@@ -34,4 +34,19 @@ aptitude install git
 git clone git@github.com:rootnode/lxc.git /lxc/repo
 
 # Aptitude
-cp /lxc/repo/web/config/system/etc/apt/sources.list /etc/apt/sources.list
+cp /lxc/repo/config/web/system/etc/apt/sources.list /etc/apt/sources.list
+aptitude update
+aptitude upgrade
+cat /lxc/repo/config/web/system/dpkg-selections | dpkg --set-selections
+apt-get dselect-upgrade
+
+# Time zone
+cp /lxc/repo/config/web/system/etc/timezone /etc/timezone
+dpkg-reconfigure tzdata
+
+# Kernel
+dpkg -i /lxc/repo/kernel/linux-image-2.6.32.59-grsec-lxc-rootnode-is-sexy-ipv6-64_3_amd64.deb
+
+# Network
+vim /etc/network/interfaces
+
