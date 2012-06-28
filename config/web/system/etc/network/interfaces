@@ -1,0 +1,26 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto br0
+iface br0 inet static
+	address 176.31.234.143
+	netmask 255.255.255.0
+	network 176.31.234.0
+	broadcast 176.31.234.255
+	gateway 176.31.234.254
+	bridge_ports eth0
+	bridge_fd 0
+	bridge_stp off
+	bridge_maxwait 0
+	# service ip
+	up /sbin/ip a a 91.121.53.100/32 dev br0 
+
+	# container ip
+	up /sbin/ip a a 94.23.145.245/32 dev br0
+
+	# lxc ip
+	up /sbin/ip a a 10.1.0.1/16 dev br0

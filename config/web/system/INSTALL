@@ -1,0 +1,37 @@
+# SSH keys
+vim /root/.ssh/authorized_keys2
+
+# Hostname
+vim /etc/hostname
+hostname -F /etc/hostname
+
+# Additional devices
+mknod -m 660 /dev/md2 b 9 2
+mknod -m 660 /dev/sda3 b 8 3
+mknod -m 660 /dev/sdb3 b 8 19
+
+chown root:disk /dev/md2 /dev/sda3 /dev/sdb3
+
+# Create RAID1
+cfdisk /dev/sda
+cfdisk /dev/sdb
+reboot
+mdadm --create /dev/md2 --level=1 --raid-devices=2 /dev/sd[ab]3
+echo 'DEVICE /dev/sd*[0-9]' > /etc/mdadm/mdadm.conf
+mdadm --detail --scan >> /etc/mdadm/mdadm.conf
+
+# LVM
+pvcreate /dev/md2
+vgcreate lxc /dev/md2
+lvcreate -L50G -n lxc lxc
+mkfs.ext4 /dev/mapper/lxc-lxc
+
+# LXC repo
+mkdir -m 711 /lxc
+mount /dev/mapper/lxc-lxc /lxc
+aptitude update
+aptitude install git
+git clone git@github.com:rootnode/lxc.git /lxc/repo
+
+# Aptitude
+cp /lxc/repo/web/config/system/etc/apt/sources.list /etc/apt/sources.list
