@@ -84,5 +84,6 @@ rsync -av /lxc/template/*.tar root@system.web3.rootnode.net:/lxc/template/
 for i in *.tar ; do echo $i ; tar xf $i ; done
 
 # System containers
+mkdir /lxc/system
 lxc create proxy 5 system
 

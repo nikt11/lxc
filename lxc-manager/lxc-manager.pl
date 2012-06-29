@@ -412,7 +412,7 @@ sub command_create {
 
 	# Set hostname
 	my $hostname = $container_is_readonly ? "$SERVER_TYPE.$container_name.$SERVER_DOMAIN"
-	                                      : "$container_name.$SERVER_TYPE.$SERVER_ID.$SERVER_DOMAIN";
+	                                      : "$container_name.$SERVER_TYPE$SERVER_ID.$SERVER_DOMAIN";
 
 	# Create lxc.conf file
 	open my $lxcconf_fh, '>', $container_lxcconf_file;
