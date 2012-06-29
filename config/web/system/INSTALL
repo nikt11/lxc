@@ -60,7 +60,6 @@ cp /lxc/repo/config/web/system/etc/fstab /etc/fstab
 mount -o remount /
 mount -o remount /lxc
 
-
 # Cgroups
 mkdir /cgroup
 mount /cgroup
@@ -80,6 +79,9 @@ ln -s /lxc/repo/rsnapshot/remote/restrict-ssh.sh /usr/local/sbin/restrict-ssh
 ssh-keygen -t rsa -b 2048
 
 # Ferm
+rm -rf /etc/ferm/*
+cp -rv /lxc/repo/ferm/* /etc/ferm/ 
+vim /etc/ferm/conf.d/network.conf
 
 # User template
 rsync -av /lxc/template/*.tar root@system.web3.rootnode.net:/lxc/template/
