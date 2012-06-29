@@ -45,8 +45,44 @@ cp /lxc/repo/config/web/system/etc/timezone /etc/timezone
 dpkg-reconfigure tzdata
 
 # Kernel
+cp /lxc/repo/config/web/system/etc/default/grub /etc/default/grub
 dpkg -i /lxc/repo/kernel/linux-image-2.6.32.59-grsec-lxc-rootnode-is-sexy-ipv6-64_3_amd64.deb
+grub-set-default 1
+reboot
 
 # Network
+cp /lxc/repo/config/web/system/etc/network/interfaces /etc/network/interfaces
 vim /etc/network/interfaces
+/etc/init.d/networking restart
+
+# Fstab
+cp /lxc/repo/config/web/system/etc/fstab /etc/fstab
+mount -o remount /
+mount -o remount /lxc
+
+
+# Cgroups
+mkdir /cgroup
+mount /cgroup
+
+# Sysctl
+cp -prv /lxc/repo/config/web/system/etc/sysctl.d /etc/
+sysctl -p
+sysctl -p /etc/sysctl.d/*.conf
+
+# Repo binaries
+ln -s /lxc/repo/rsnapshot/remote/lvm-snapshot.pl /usr/local/sbin/lvm-snapshot
+ln -s /lxc/repo/lxc-manager/lxc-manager.pl /usr/local/sbin/lxc
+ln -s /lxc/repo/adduser/lxc-add.pl /usr/local/sbin/lxc-add
+ln -s /lxc/repo/rsnapshot/remote/restrict-ssh.sh /usr/local/sbin/restrict-ssh
+
+# SSH key
+ssh-keygen -t rsa -b 2048
+
+# User template
+rsync -av /lxc/template/*.tar root@system.web3.rootnode.net:/lxc/template/
+for i in *.tar ; do echo $i ; tar xf $i ; done
+
+# System containers
+lxc create proxy 5 system
 

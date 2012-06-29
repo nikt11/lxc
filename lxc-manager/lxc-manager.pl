@@ -410,9 +410,13 @@ sub command_create {
 	my $ipaddr = join('.', @ipaddr);
 	my $ipaddr_netmask = "$ipaddr/$netmask";
 
+	# Set hostname
+	my $hostname = $container_is_readonly ? "$SERVER_TYPE.$container_name.$SERVER_DOMAIN"
+	                                      : "$container_name.$SERVER_TYPE.$SERVER_ID.$SERVER_DOMAIN";
+
 	# Create lxc.conf file
 	open my $lxcconf_fh, '>', $container_lxcconf_file;
-        print $lxcconf_fh "lxc.utsname = $SERVER_TYPE.$container_name.$SERVER_DOMAIN\n"
+        print $lxcconf_fh "lxc.utsname = $hostname\n"
                         . "lxc.rootfs = $container_rootfs_dir\n"
                         . "lxc.mount = $container_fstab_file\n"
                         . "lxc.network.hwaddr = $hwaddr\n"
