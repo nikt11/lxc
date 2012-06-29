@@ -79,6 +79,8 @@ ln -s /lxc/repo/rsnapshot/remote/restrict-ssh.sh /usr/local/sbin/restrict-ssh
 # SSH key
 ssh-keygen -t rsa -b 2048
 
+# Ferm
+
 # User template
 rsync -av /lxc/template/*.tar root@system.web3.rootnode.net:/lxc/template/
 for i in *.tar ; do echo $i ; tar xf $i ; done
@@ -86,4 +88,7 @@ for i in *.tar ; do echo $i ; tar xf $i ; done
 # System containers
 mkdir /lxc/system
 lxc create proxy 5 system
-
+lxc start proxy
+cat /root/.ssh/id_rsa.pub > /lxc/template/proxy/rootfs/root/.ssh/authorized_keys
+vim /lxc/template/proxy/rootfs/etc/rc.local
+rm -rf /lxc/template/proxy/rootfs/etc/service/*
