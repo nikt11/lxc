@@ -1,5 +1,5 @@
 # SSH keys
-vim /root/.ssh/authorized_keys2
+vim /root/.ssh/authorized_keys2 -> admin, backup, adduser keys
 
 # Hostname
 vim /etc/hostname
@@ -11,6 +11,9 @@ mknod -m 660 /dev/sda3 b 8 3
 mknod -m 660 /dev/sdb3 b 8 19
 
 chown root:disk /dev/md2 /dev/sda3 /dev/sdb3
+
+# locale
+dpkg-reconfigure locale
 
 # Create RAID1
 cfdisk /dev/sda
@@ -86,11 +89,80 @@ vim /etc/ferm/conf.d/network.conf
 # User template
 rsync -av /lxc/template/*.tar root@system.web3.rootnode.net:/lxc/template/
 for i in *.tar ; do echo $i ; tar xf $i ; done
+cd /lxc/template/user/rootfs/home/etc/service -> change ip addresses
+vim /lxc/template/user/rootfs/usr/satan/.ssh/authorized_keys -> proxy key
 
 # System containers
 mkdir /lxc/system
+
+# proxy container
 lxc create proxy 5 system
 lxc start proxy
 cat /root/.ssh/id_rsa.pub > /lxc/template/proxy/rootfs/root/.ssh/authorized_keys
 vim /lxc/template/proxy/rootfs/etc/rc.local
 rm -rf /lxc/template/proxy/rootfs/etc/service/*
+mkdir /home/satan
+chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+vim .ssh/authorized_keys -> satan key
+ssh-keygen -t rsa b 2048
+
+# nginx container
+lxc create nginx 8 system
+vim /lxc/template/proxy/rootfs/etc/rc.local
+lxc start nginx
+cat /root/.ssh/id_rsa.pub > /lxc/template/proxy/rootfs/root/.ssh/authorized_keys
+mkdir /home/satan ; chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+vim .ssh/authorized_keys -> satan key
+
+cd /home/satan/config -> create config files
+cd /etc/service -> change run scripts, restart services
+
+# mysql container
+lxc create mysql 10 system
+vim /lxc/system/mysql/lxc.conf -> increase memory
+vim /lxc/template/mysql/rootfs/etc/rc.local
+lxc start mysql
+cat /root/.ssh/id_rsa.pub > /lxc/template/mysql/rootfs/root/.ssh/authorized_keys
+mkdir /home/satan ; chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+vim .ssh/authorized_keys -> add satan key
+git clone git://github.com/rootnode/satan.git prod
+mkdir config logs
+chmod 700 *
+cd config
+ln -s ../prod/config/agent.yaml agent.yaml
+exit
+aptitude purge percona-server-server-5.5
+aptitude install percona-server-server-5.5
+cd /etc/service -> change run scripts, restart services
+
+# smtp container
+lxc create smtp 11 system
+vim /lxc/template/smtp/rootfs/etc/rc.local
+lxc start smtp
+cat /root/.ssh/id_rsa.pub > /lxc/template/smtp/rootfs/root/.ssh/authorized_keys
+
+
+# ftp container
+lxc create ftp 12 system
+vim /lxc/template/ftp/rootfs/etc/rc.local
+cat /root/.ssh/id_rsa.pub > /lxc/template/ftp/rootfs/root/.ssh/authorized_keys
+
+mkdir /home/satan ; chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+
+vim .ssh/authorized_keys -> add satan key
+
+-> mysql database cleanup
+-> debian.cnf password change
+
+cd /etc/service
+
+
+
