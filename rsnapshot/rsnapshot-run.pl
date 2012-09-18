@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# Rsnapshot cron script
+# Rsnapshot run script
 # Rootnode, http://rootnode.net
 #
 # Copyright (C) 2012 Marcin Hlybin
@@ -41,9 +41,11 @@ Available backup levels are: hourly, daily, weekly, monthly
 END_OF_USAGE
 
 # Get options
-my ($ssh_host);
+my ($ssh_host, $run_snapshot_backup, $run_mysql_backup);
 GetOptions(
-	'host=s'          => \$ssh_host,
+	'host=s'   => \$ssh_host,
+	'snapshot' => \$run_snapshot_backup,
+	'mysql'    => \$run_mysql_backup,
 );
 
 # Get arguments
@@ -62,15 +64,19 @@ system("$MYSQLDUMP_CONF_SCRIPT -h $ssh_host");
 die $! if $?;
 
 # Snapshot backup
-my @snapshot_conf_files = glob("$SNAPSHOT_CONF_DIR/*");
-foreach my $conf_file (@snapshot_conf_files) {
-	print "snapshot: $conf_file\n";
-	system("$RSNAPSHOT_BIN -c $conf_file $backup_level");
+if (defined $run_snapshot_backup) {
+	my @snapshot_conf_files = glob("$SNAPSHOT_CONF_DIR/*");
+	foreach my $conf_file (@snapshot_conf_files) {
+		print "snapshot: $conf_file\n";
+		system("$RSNAPSHOT_BIN -c $conf_file $backup_level");
+	}
 }
 
 # Mysqldump backup
-my @mysqldump_conf_files = glob("$MYSQLDUMP_CONF_DIR/*");
-foreach my $conf_file (@mysqldump_conf_files) {
-	print "mysqldump: $conf_file\n";
-	system("$RSNAPSHOT_BIN -c $conf_file $backup_level");
+if (defined $run_mysql_backup) {
+	my @mysqldump_conf_files = glob("$MYSQLDUMP_CONF_DIR/*");
+	foreach my $conf_file (@mysqldump_conf_files) {
+		print "mysqldump: $conf_file\n";
+		system("$RSNAPSHOT_BIN -c $conf_file $backup_level");
+	}
 }
