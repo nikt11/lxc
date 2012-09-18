@@ -35,7 +35,7 @@ Readonly my $BASENAME => basename($0);
 Readonly my $USAGE    => <<END_OF_USAGE;
 Rsnapshot cron script
 Usage: 
-	$BASENAME -h <hostname> <backup_level>
+	$BASENAME [ --mysql ] [ --snapshot ] --host <hostname> <backup_level>
 
 Available backup levels are: hourly, daily, weekly, monthly
 END_OF_USAGE
