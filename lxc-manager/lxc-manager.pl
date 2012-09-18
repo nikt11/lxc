@@ -74,10 +74,10 @@ Readonly my $MAG      => "\033[1;35m";   # Magenta
 Readonly my %IS_READONLY => ( user => 1, backup => 1, dev=> 1 );
 Readonly my @MOUNT_DIRS => qw(bin dev etc root lib sbin usr var);
 my %MOUNT = (
-	home => { opts => 'nobarrier,noatime,nodiratime,nodev,nosuid,commit=300' },
+	home => { opts => 'nobarrier,noatime,nodev,nosuid' },
 	var  => { opts => 'noexec,nodev,nosuid', bind_home_if_readonly => 1 },
-	root => { opts => 'noexec,nodev,nosuid', bind_home_if_readonly => 1 }
 );
+#	root => { opts => 'noexec,nodev,nosuid', bind_home_if_readonly => 1 }
 
 # Table layout
 my @empty_array = [ q[], q[], q[ ], q[] ];
@@ -297,12 +297,10 @@ sub command_create {
 	validate_template_name($template_name);
 
         # Check UID
-=don't check id
-	if ($container_is_readonly) {
+        if ($container_is_readonly) {
                 $container_id < $LXC_UID_MIN and die "Container ID '$container_id' too low (<$LXC_UID_MIN).\n";
                 $container_id > $LXC_UID_MAX and die "Container ID '$container_id' too high (>$LXC_UID_MAX).\n";
         }
-=cut
 
 	# Check container
 	is_container_running($container_name) and die "Container '$container_name' is running.\n";

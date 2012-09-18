@@ -1,0 +1,5 @@
+deb http://mirror.ovh.net/debian/ squeeze main contrib non-free
+deb-src http://mirror.ovh.net/debian/ squeeze main contrib non-free
+
+deb http://security.debian.org/ squeeze/updates main contrib non-free
+deb-src http://security.debian.org/ squeeze/updates main contrib non-free

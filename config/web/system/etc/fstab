@@ -1,0 +1,7 @@
+#<file system>	<mount point>	<type>	<options>	<dump>	<pass>
+/dev/md1	/	ext4	rw,nobarrier,noquota,noacl,nouser_xattr,errors=remount-ro,commit=300	0	1
+/dev/sda2	swap	swap	defaults	0	0
+/dev/sdb2	swap	swap	defaults	0	0
+/dev/mapper/lxc-lxc /lxc ext4	rw,nobarrier,noquota,noacl,nouser_xattr,errors=remount-ro,commit=300	0	0
+cgroup        /cgroup        cgroup        defaults    0    0
+system.backup1.rootnode.net:/	/nfs/backup	nfs	ro,noexec,nosuid,vers=4,soft,timeo=5,intr,noacl,port=2049,tcp	0	0

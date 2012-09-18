@@ -1,0 +1,168 @@
+# SSH keys
+vim /root/.ssh/authorized_keys2 -> admin, backup, adduser keys
+
+# Hostname
+vim /etc/hostname
+hostname -F /etc/hostname
+
+# Additional devices
+mknod -m 660 /dev/md2 b 9 2
+mknod -m 660 /dev/sda3 b 8 3
+mknod -m 660 /dev/sdb3 b 8 19
+
+chown root:disk /dev/md2 /dev/sda3 /dev/sdb3
+
+# locale
+dpkg-reconfigure locale
+
+# Create RAID1
+cfdisk /dev/sda
+cfdisk /dev/sdb
+reboot
+mdadm --create /dev/md2 --level=1 --raid-devices=2 /dev/sd[ab]3
+echo 'DEVICE /dev/sd*[0-9]' > /etc/mdadm/mdadm.conf
+mdadm --detail --scan >> /etc/mdadm/mdadm.conf
+
+# LVM
+pvcreate /dev/md2
+vgcreate lxc /dev/md2
+lvcreate -L50G -n lxc lxc
+mkfs.ext4 /dev/mapper/lxc-lxc
+
+# LXC repo
+mkdir -m 711 /lxc
+mount /dev/mapper/lxc-lxc /lxc
+aptitude update
+aptitude install git
+git clone git@github.com:rootnode/lxc.git /lxc/repo
+
+# Aptitude
+cp /lxc/repo/config/web/system/etc/apt/sources.list /etc/apt/sources.list
+aptitude update
+aptitude upgrade
+cat /lxc/repo/config/web/system/dpkg-selections | dpkg --set-selections
+apt-get dselect-upgrade
+
+# Time zone
+cp /lxc/repo/config/web/system/etc/timezone /etc/timezone
+dpkg-reconfigure tzdata
+
+# Kernel
+cp /lxc/repo/config/web/system/etc/default/grub /etc/default/grub
+dpkg -i /lxc/repo/kernel/linux-image-2.6.32.59-grsec-lxc-rootnode-is-sexy-ipv6-64_3_amd64.deb
+grub-set-default 1
+reboot
+
+# Network
+cp /lxc/repo/config/web/system/etc/network/interfaces /etc/network/interfaces
+vim /etc/network/interfaces
+/etc/init.d/networking restart
+
+# Fstab
+cp /lxc/repo/config/web/system/etc/fstab /etc/fstab
+mount -o remount /
+mount -o remount /lxc
+
+# Cgroups
+mkdir /cgroup
+mount /cgroup
+
+# Sysctl
+cp -prv /lxc/repo/config/web/system/etc/sysctl.d /etc/
+sysctl -p
+sysctl -p /etc/sysctl.d/*.conf
+
+# Repo binaries
+ln -s /lxc/repo/rsnapshot/remote/lvm-snapshot.pl /usr/local/sbin/lvm-snapshot
+ln -s /lxc/repo/lxc-manager/lxc-manager.pl /usr/local/sbin/lxc
+ln -s /lxc/repo/adduser/lxc-add.pl /usr/local/sbin/lxc-add
+ln -s /lxc/repo/rsnapshot/remote/restrict-ssh.sh /usr/local/sbin/restrict-ssh
+
+# SSH key
+ssh-keygen -t rsa -b 2048
+
+# Ferm
+rm -rf /etc/ferm/*
+cp -rv /lxc/repo/ferm/* /etc/ferm/ 
+vim /etc/ferm/conf.d/network.conf
+
+# User template
+rsync -av /lxc/template/*.tar root@system.web3.rootnode.net:/lxc/template/
+for i in *.tar ; do echo $i ; tar xf $i ; done
+cd /lxc/template/user/rootfs/home/etc/service -> change ip addresses
+vim /lxc/template/user/rootfs/usr/satan/.ssh/authorized_keys -> proxy key
+
+# System containers
+mkdir /lxc/system
+
+# proxy container
+lxc create proxy 5 system
+lxc start proxy
+cat /root/.ssh/id_rsa.pub > /lxc/template/proxy/rootfs/root/.ssh/authorized_keys
+vim /lxc/template/proxy/rootfs/etc/rc.local
+rm -rf /lxc/template/proxy/rootfs/etc/service/*
+mkdir /home/satan
+chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+vim .ssh/authorized_keys -> satan key
+ssh-keygen -t rsa b 2048
+
+# nginx container
+lxc create nginx 8 system
+vim /lxc/template/proxy/rootfs/etc/rc.local
+lxc start nginx
+cat /root/.ssh/id_rsa.pub > /lxc/template/proxy/rootfs/root/.ssh/authorized_keys
+mkdir /home/satan ; chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+vim .ssh/authorized_keys -> satan key
+
+cd /home/satan/config -> create config files
+cd /etc/service -> change run scripts, restart services
+
+# mysql container
+lxc create mysql 10 system
+vim /lxc/system/mysql/lxc.conf -> increase memory
+vim /lxc/template/mysql/rootfs/etc/rc.local
+lxc start mysql
+cat /root/.ssh/id_rsa.pub > /lxc/template/mysql/rootfs/root/.ssh/authorized_keys
+mkdir /home/satan ; chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+vim .ssh/authorized_keys -> add satan key
+git clone git://github.com/rootnode/satan.git prod
+mkdir config logs
+chmod 700 *
+cd config
+ln -s ../prod/config/agent.yaml agent.yaml
+exit
+aptitude purge percona-server-server-5.5
+aptitude install percona-server-server-5.5
+cd /etc/service -> change run scripts, restart services
+
+# smtp container
+lxc create smtp 11 system
+vim /lxc/template/smtp/rootfs/etc/rc.local
+lxc start smtp
+cat /root/.ssh/id_rsa.pub > /lxc/template/smtp/rootfs/root/.ssh/authorized_keys
+
+
+# ftp container
+lxc create ftp 12 system
+vim /lxc/template/ftp/rootfs/etc/rc.local
+cat /root/.ssh/id_rsa.pub > /lxc/template/ftp/rootfs/root/.ssh/authorized_keys
+
+mkdir /home/satan ; chown satan:satan /home/satan
+su - satan
+mkdir .ssh
+
+vim .ssh/authorized_keys -> add satan key
+
+-> mysql database cleanup
+-> debian.cnf password change
+
+cd /etc/service
+
+
+
