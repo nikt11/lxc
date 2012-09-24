@@ -56,7 +56,7 @@ Readonly my $LXC_DAEMON       => $ENV{DAEMON} || 1;            # Daemonize lxc-s
 # LVM configuration
 Readonly my $LVM_REMOVE => $ENV{LVM_REMOVE} || 1;     # WARNING! Users's /home partition will be removed.
 Readonly my $LVM_SIZE   => $ENV{LVM_SIZE}   || '6G';  # Volume size
-Readonly my $LVM_VG     => 'lxc';                     # Volume group name
+Readonly my $LVM_VG     => $ENV{LVM_VG}     || 'lxc'; # Volume group name
 
 # Terminal configuration
 Readonly my $BASENAME => basename($0);   # Script basename
@@ -72,7 +72,7 @@ Readonly my $MAG      => "\033[1;35m";   # Magenta
 
 # Mount options
 Readonly my $DEFAULT_MOUNT_OPTS => 'nobarrier,noatime,nodiratime,noquota,noacl,nouser_xattr,errors=remount-ro,commit=300';
-Readonly my %IS_READONLY => ( user => 1, backup => 1, dev=> 1 );
+Readonly my %IS_READONLY => ( user => 1, backup => 1, dev=> 1, rootnode=>1 );
 Readonly my @MOUNT_DIRS => qw(bin dev etc root lib sbin usr var);
 my %MOUNT = (
 	home => { opts => "nodev,nosuid,$DEFAULT_MOUNT_OPTS" },
@@ -165,6 +165,7 @@ my $repo_lxcconf_file = "$LXC_REPO_DIR/lxc.conf";
 
 # LVM paths
 my $lvm_path   = "/dev/mapper/$LVM_VG-$container_type--$container_name";
+#my $lvm_path   = "/dev/mapper/$LVM_VG-$container_name";
 my $lvm_lvname = "$container_type-$container_name"; 
 
 # Check paths

@@ -37,6 +37,7 @@ Readonly my $SATAN_BIN   => '/usr/local/bin/satan';
 Readonly my $SSH_BIN         => '/usr/bin/ssh';
 Readonly my $SSH_ADD_KEY     => '/root/.ssh/lxc_add_rsa';
 Readonly my $SSH_ADD_COMMAND => '/usr/local/sbin/lxc-add';
+Readonly my $SSH_DEL_COMMAND => '/usr/local/sbin/lxc-del';
 
 # Usage
 Readonly my $BASENAME => basename($0);
@@ -45,7 +46,7 @@ Adduser script
 Usage:
 	$BASENAME signup                                  get signup data and create pam user
 	$BASENAME pam --uid <uid>                         create pam user omitting signup DB
-	$BASENAME container --uid <uid> --server <type>   create container of given type 
+	$BASENAME add|del --uid <uid> --server <type>     create or remove container of given type 
 END_OF_USAGE
 
 # Check configuration
@@ -75,22 +76,28 @@ my %db_adduser;
    $db_adduser{get_container}        = $db_adduser{dbh}->prepare("SELECT server_no FROM containers WHERE uid=? AND server_type=? and status is NULL");
    $db_adduser{set_container_status} = $db_adduser{dbh}->prepare("UPDATE containers SET status=? WHERE uid=? AND server_type=?");
 
-# Get arguments
-die $USAGE unless @ARGV;
-my $mode_type = shift or die "Mode not specified. Use 'signup', 'container' or 'pam'.\n";
-
-# Get command line arguments
+# Get command line options
 my ($opt_uid, $opt_server);
 GetOptions(
 	'uid=i'    => \$opt_uid,
 	'server=s' => \$opt_server, 
 );
 
-# SIGNUP MODE
-# Get 1 user from signup database
-# Create Pam+Satan user
-# Store data in adduser database	
-if ($mode_type eq 'signup') {
+# Get command name
+die $USAGE unless @ARGV;
+my $command_name = shift or die "Mode not specified. Use 'signup', 'container' or 'pam'.\n";
+   $command_name eq 'signup' and signup();
+   $command_name eq 'pam'    and pam($opt_uid);
+   $command_name eq 'add'    and add($opt_uid, $opt_server);
+   $command_name eq 'del'    and del($opt_uid);
+die "Unknown command name '$command_name'.\n";
+
+sub signup {
+	# SIGNUP MODE
+	# Get 1 user from signup database
+	# Create Pam+Satan user
+	# Store data in adduser database	
+
 	# Get one record from signup database
 	$db_signup{get_user}->execute;
 
@@ -159,12 +166,12 @@ if ($mode_type eq 'signup') {
 	exit;	
 }
 
-# PAM MODE
-# Create pam and satan user only.
-if ($mode_type eq 'pam') {
-	# Mandatory arguments
-	defined $opt_uid or die "Uid not specified.";
-	my $uid = $opt_uid;
+sub pam {
+	# PAM MODE
+	# Create pam and satan user only.
+
+	my ($uid) = @_;
+	defined $uid or die "Uid not specified.";
 	
 	# Get user from adduser database
 	$db_adduser{get_user}->execute($uid);
@@ -193,16 +200,62 @@ if ($mode_type eq 'pam') {
 	exit;
 }
 
-# CONTAINER MODE
-# Create user container on specified server.
-# User must exist in adduser database.
-if ($mode_type eq 'container') {
-	# Mandatory arguments
-	defined $opt_uid    or die "Uid not specified.";
-	defined $opt_server or die "Server name not specified."; 
+sub del {
+	# DELETE CONTAINER
+	# Delete user container from specified server
+	# and all related configuration files
+	
+	my ($uid, $server_type) = @_;
+	defined $uid         or die "Uid not specified.";
+	defined $server_type or die "Server type not specified."; 
 
-	my $uid = $opt_uid;
-	my $server_type = $opt_server;
+	# Get user from adduser database
+	$db_adduser{get_user}->execute($uid);
+	my $user_found = $db_adduser{get_user}->rows;
+	   $user_found or die "Uid '$uid' not found in adduser database.\n";
+
+	# User record
+	my $user_record = $db_adduser{get_user}->fetchall_hashref('uid')->{$uid};
+	### $user_record
+
+	my $user_name = $user_record->{user_name} or die "User name not found";
+
+	# Get container number
+	$db_adduser{get_container}->execute($uid, $server_type);
+	my $server_found = $db_adduser{get_container}->rows;
+	   $server_found or die "Container type '$server_type' not defined for user '$uid'.\n";
+
+	my $server_no = $db_adduser{get_container}->fetchrow_arrayref->[0];
+	isdigit($server_no) or die "Server no '$server_no' not a number.\n";
+	
+	my $server_name = $server_type . $server_no;
+	
+	# Set SSH command arguments
+	my $command_args = "uid $uid "
+	                 . "user_name $user_name";
+
+	### $command_args
+	system("$SSH_BIN -i $SSH_ADD_KEY root\@system.$server_name.rootnode.net $SSH_DEL_COMMAND $command_args");
+	
+	if ($?) {
+		my $error_message = $!;
+		chomp $error_message;
+		$db_adduser{set_container_status}->execute($error_message, $uid, $server_type);
+		die "lxc-del failed: $!";
+	}
+
+	$db_adduser{set_container_status}->execute('DELETED', $uid, $server_type);
+	exit;
+}
+
+sub add {
+	# ADD CONTAINER
+	# Create user container on specified server.
+	# User must exist in adduser database.
+	
+	my ($uid, $server_type) = @_;
+	defined $uid         or die "Uid not specified.";
+	defined $server_type or die "Server type not specified."; 
 
 	# Get user from adduser database
 	$db_adduser{get_user}->execute($uid);
@@ -252,8 +305,6 @@ if ($mode_type eq 'container') {
 	$db_adduser{set_container_status}->execute('OK', $uid, $server_type);
 	exit;
 }
-
-die "Unknown mode '$mode_type'. Cannot proceed.\n";
 
 sub set_containers {
 	my ($uid) = @_;
@@ -307,5 +358,3 @@ sub do_rollback {
 	my ($error_message, $user_id) = @_;
 	$db_signup{set_status}->execute($error_message, $user_id);
 }
-
-exit;
