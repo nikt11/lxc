@@ -75,8 +75,8 @@ Readonly my $DEFAULT_MOUNT_OPTS => 'nobarrier,noatime,nodiratime,noquota,noacl,n
 Readonly my %IS_READONLY => ( user => 1, backup => 1, dev=> 1, rootnode=>1 );
 Readonly my @MOUNT_DIRS => qw(bin dev etc root lib sbin usr var);
 my %MOUNT = (
-	home => { opts => "nodev,nosuid,$DEFAULT_MOUNT_OPTS" },
-	var  => { opts => "noexec,nodev,nosuid,$DEFAULT_MOUNT_OPTS", bind_home_if_readonly => 1 },
+-       home => { opts => "nodev,nosuid,$DEFAULT_MOUNT_OPTS" },
+-       var  => { opts => "noexec,nodev,nosuid,$DEFAULT_MOUNT_OPTS", bind_home_if_readonly => 1 },
 );
 #	root => { opts => 'noexec,nodev,nosuid', bind_home_if_readonly => 1 }
 
@@ -411,13 +411,9 @@ sub command_create {
 	my $ipaddr = join('.', @ipaddr);
 	my $ipaddr_netmask = "$ipaddr/$netmask";
 
-	# Set hostname
-	my $hostname = $container_is_readonly ? "$SERVER_TYPE.$container_name.$SERVER_DOMAIN"
-	                                      : "$container_name.$SERVER_TYPE$SERVER_ID.$SERVER_DOMAIN";
-
 	# Create lxc.conf file
 	open my $lxcconf_fh, '>', $container_lxcconf_file;
-        print $lxcconf_fh "lxc.utsname = $hostname\n"
+        print $lxcconf_fh "lxc.utsname = $SERVER_TYPE.$container_name.$SERVER_DOMAIN\n"
                         . "lxc.rootfs = $container_rootfs_dir\n"
                         . "lxc.mount = $container_fstab_file\n"
                         . "lxc.network.hwaddr = $hwaddr\n"
@@ -772,7 +768,7 @@ sub mount_shares {
 		}
 		
 		# Get mount options
-		my $mount_opts = $MOUNT{$dir_name}->{opts} || $DEFAULT_MOUNT_OPTS;
+		my $mount_opts = $MOUNT{$dir_name}->{opts} || 'defaults';
 
 		# Mount directory
 		system("mount -o $mount_opts --bind $template_bind_dir $container_bind_dir");

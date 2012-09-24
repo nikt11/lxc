@@ -113,7 +113,7 @@ snapshot_root	$SNAPSHOT_DIR/$container_type/$container_name
 
 ssh_args	$SSH_OPTIONS -i $SSH_RSYNC_KEY -p $SSH_RSYNC_PORT
 
-retain	hourly	$retain_hourly
+#retain	hourly	$retain_hourly
 retain	daily	$retain_daily
 retain	weekly	$retain_weekly
 retain	monthly	$retain_monthly
