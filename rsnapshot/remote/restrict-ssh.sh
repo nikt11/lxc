@@ -29,8 +29,10 @@ case "$SSH_ORIGINAL_COMMAND" in
                  ;;  
         $COMMAND_NAME*)  
                  $SSH_ORIGINAL_COMMAND  
+                 exit
                  ;;  
         *)  
                  echo "Rejected"  
                  ;;  
 esac  
+exit 1
