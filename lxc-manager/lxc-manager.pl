@@ -75,8 +75,8 @@ Readonly my $DEFAULT_MOUNT_OPTS => 'nobarrier,noatime,nodiratime,noquota,noacl,n
 Readonly my %IS_READONLY => ( user => 1, backup => 1, dev=> 1, rootnode=>1 );
 Readonly my @MOUNT_DIRS => qw(bin dev etc root lib sbin usr var);
 my %MOUNT = (
--       home => { opts => "nodev,nosuid,$DEFAULT_MOUNT_OPTS" },
--       var  => { opts => "noexec,nodev,nosuid,$DEFAULT_MOUNT_OPTS", bind_home_if_readonly => 1 },
+        home => { opts => "nodev,nosuid,$DEFAULT_MOUNT_OPTS" },
+        var  => { opts => "noexec,nodev,nosuid,$DEFAULT_MOUNT_OPTS", bind_home_if_readonly => 1 },
 );
 #	root => { opts => 'noexec,nodev,nosuid', bind_home_if_readonly => 1 }
 
