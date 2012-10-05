@@ -43,6 +43,6 @@ if (-d $proxy_service_dir) {
 	remove_tree($proxy_service_dir) or die "Cannot delete proxy service directory '$proxy_service_dir'";
 
 	# Kill supervise process
-	system("/usr/bin/pkill -f '^supervise $uid$'");
+	system("/usr/bin/pkill -f '^supervise $uid\$'");
 }
 exit;
