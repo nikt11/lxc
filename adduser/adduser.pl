@@ -23,19 +23,21 @@ use Getopt::Long;
 use Smart::Comments;
 
 # Server ID's
-Readonly my $WEB_SERVER_ID => 1;
-Readonly my $APP_SERVER_ID => 1;
-Readonly my $DEV_SERVER_ID => 1;
+Readonly my $WEB_SERVER_ID => 3;
+#Readonly my $APP_SERVER_ID => 1;
+#Readonly my $DEV_SERVER_ID => 1;
 
 # Satan connection params
-Readonly my $SATAN_ADDR  => '10.101.0.5';
-Readonly my $SATAN_PORT  => '1600';
-Readonly my $SATAN_KEY   => '/etc/satan/key';
-Readonly my $SATAN_BIN   => '/usr/local/bin/satan';
+Readonly my $SATAN_ADDR => '10.101.0.5';
+Readonly my $SATAN_PORT => '1600';
+Readonly my $SATAN_KEY  => '/etc/satan/key';
+Readonly my $SATAN_BIN  => '/usr/local/bin/satan';
+Readonly my @SATAN_SRV  => qw( dns ftp mail mysql vhost );
 
 # SSH params
 Readonly my $SSH_BIN         => '/usr/bin/ssh';
 Readonly my $SSH_ADD_KEY     => '/root/.ssh/lxc_add_rsa';
+Readonly my $SSH_DEL_KEY     => '/root/.ssh/lxc_del_rsa';
 Readonly my $SSH_ADD_COMMAND => '/usr/local/sbin/lxc-add';
 Readonly my $SSH_DEL_COMMAND => '/usr/local/sbin/lxc-del';
 
@@ -72,8 +74,8 @@ my %db_adduser;
    $db_adduser{add_credentials} = $db_adduser{dbh}->prepare("INSERT INTO credentials(uid, satan_key, pam_passwd, pam_shadow, user_password, user_password_p) VALUES(?,?,?,?,?,?)");
    $db_adduser{get_credentials} = $db_adduser{dbh}->prepare("SELECT * FROM credentials WHERE uid=?");
 
-   $db_adduser{add_container}        = $db_adduser{dbh}->prepare("INSERT INTO containers(uid, server_type, server_no) VALUES(?,?,?)");
-   $db_adduser{get_container}        = $db_adduser{dbh}->prepare("SELECT server_no FROM containers WHERE uid=? AND server_type=? and status is NULL");
+   $db_adduser{add_container}        = $db_adduser{dbh}->prepare("INSERT INTO containers(uid, server_type, server_no, status) VALUES(?,?,?, 'NEW')");
+   $db_adduser{get_container}        = $db_adduser{dbh}->prepare("SELECT server_no FROM containers WHERE uid=? AND server_type=? and status <> ?");
    $db_adduser{set_container_status} = $db_adduser{dbh}->prepare("UPDATE containers SET status=? WHERE uid=? AND server_type=?");
 
 # Get command line options
@@ -89,7 +91,7 @@ my $command_name = shift or die "Mode not specified. Use 'signup', 'container' o
    $command_name eq 'signup' and signup();
    $command_name eq 'pam'    and pam($opt_uid);
    $command_name eq 'add'    and add($opt_uid, $opt_server);
-   $command_name eq 'del'    and del($opt_uid);
+   $command_name eq 'del'    and del($opt_uid, $opt_server);
 die "Unknown command name '$command_name'.\n";
 
 sub signup {
@@ -221,7 +223,7 @@ sub del {
 	my $user_name = $user_record->{user_name} or die "User name not found";
 
 	# Get container number
-	$db_adduser{get_container}->execute($uid, $server_type);
+	$db_adduser{get_container}->execute($uid, $server_type, 'DELETED');
 	my $server_found = $db_adduser{get_container}->rows;
 	   $server_found or die "Container type '$server_type' not defined for user '$uid'.\n";
 
@@ -235,15 +237,29 @@ sub del {
 	                 . "user_name $user_name";
 
 	### $command_args
-	system("$SSH_BIN -i $SSH_ADD_KEY root\@system.$server_name.rootnode.net $SSH_DEL_COMMAND $command_args");
-	
+
+	# Run lxc-del
+	system("$SSH_BIN -i $SSH_DEL_KEY root\@system.$server_name.rootnode.net $SSH_DEL_COMMAND $command_args");
 	if ($?) {
 		my $error_message = $!;
 		chomp $error_message;
 		$db_adduser{set_container_status}->execute($error_message, $uid, $server_type);
-		die "lxc-del failed: $!";
+		die "lxc-del failed: $!\n";
 	}
 
+	# Remove entire satan data
+	foreach my $satan_service (@SATAN_SRV) {
+		# satan <service> deluser <uid>
+		eval {
+			satan($satan_service, 'deluser', $uid);
+		};
+		if ($@) {
+			my $error_message = $@; chomp $error_message;
+			$db_adduser{set_container_status}->execute($error_message, $uid, $server_type);
+			die "Satan error: $@";
+		}
+	}
+	
 	$db_adduser{set_container_status}->execute('DELETED', $uid, $server_type);
 	exit;
 }
@@ -276,7 +292,7 @@ sub add {
 	my $credentials = $db_adduser{get_credentials}->fetchall_hashref('uid')->{$uid};
 
 	# Get container number
-	$db_adduser{get_container}->execute($uid, $server_type);
+	$db_adduser{get_container}->execute($uid, $server_type, 'OK');
 	my $server_found = $db_adduser{get_container}->rows;
 	   $server_found or die "Container type '$server_type' not defined for user '$uid'.\n";
 
@@ -313,8 +329,8 @@ sub set_containers {
 	# Set server IDs
 	my %server_no_for = (
 		web => $WEB_SERVER_ID,
-		app => $APP_SERVER_ID,
-		dev => $DEV_SERVER_ID,
+		#app => $APP_SERVER_ID,
+		#dev => $DEV_SERVER_ID,
 	);	
 
 	# Assing servers to user
@@ -334,22 +350,24 @@ sub set_containers {
 }
 
 sub satan {
-	local @ARGV;
+	my @args;
 
 	# Satan arguments
-	push @ARGV, '-a', $SATAN_ADDR if defined $SATAN_ADDR;
-	push @ARGV, '-p', $SATAN_PORT if defined $SATAN_PORT;
-	push @ARGV, '-k', $SATAN_KEY  if defined $SATAN_KEY;
-	push @ARGV, @_;
+	push @args, '-a', $SATAN_ADDR if defined $SATAN_ADDR;
+	push @args, '-p', $SATAN_PORT if defined $SATAN_PORT;
+	push @args, '-k', $SATAN_KEY  if defined $SATAN_KEY;
+	push @args, @_;
 	
-	# Send to satan
-	my $response = do $SATAN_BIN;
+	my $satan_args = join(q[ ], @args);
 
+	# Send to satan
+	my $response = `$SATAN_BIN $satan_args`;
+	
 	# Catch satan error
-	if ($@) {
-		my $error_message = $@;
-		die "Cannot proccess $@";
-	}
+	if ($?) {
+		my $error_message = $!;
+		die "Cannot proccess: $error_message";
+	};
 	
 	return $response;
 }
