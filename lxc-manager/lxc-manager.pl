@@ -1126,12 +1126,12 @@ sub is_container_running {
 	my ($container_name) = @_;
 
 	# Get running containers
-	my @container_list = `lxc-ls -1`;
-	chomp @container_list;
+	my @container_info = `lxc-info -n $container_name`;	
 
-	# Store as hash table
-	my %is_container_running = map { $_ => 1 } @container_list;
-	
-	return 1 if $is_container_running{$container_name};
+	for (@container_info) {
+		chomp;
+		return 1 if /RUNNING/;
+	}
+
 	return 0;
 }
